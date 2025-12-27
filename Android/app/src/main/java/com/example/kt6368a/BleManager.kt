@@ -19,7 +19,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
 import java.util.ArrayDeque
-import java.util.Locale
 import java.util.UUID
 
 class BleManager(

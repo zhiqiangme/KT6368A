@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -160,6 +161,12 @@ private fun BleScreen() {
                 .padding(PaddingValues(20.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            val primaryButtonColor = Color(0xFFD6A36A)
+            val primaryButtonDisabled = Color(0xFFE6CDB2)
+            val primaryButtonContent = Color(0xFF3B2714)
+            val tonalButtonColor = Color(0xFFEBD7C2)
+            val tonalButtonContent = Color(0xFF7A4B2A)
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F6F2)),
@@ -226,7 +233,11 @@ private fun BleScreen() {
                     if (!permissionsGranted) {
                         FilledTonalButton(
                             onClick = { permissionLauncher.launch(requiredPermissions) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = tonalButtonColor,
+                                contentColor = tonalButtonContent,
+                            )
                         ) {
                             Text("请求权限")
                         }
@@ -237,7 +248,11 @@ private fun BleScreen() {
                                 val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                                 enableBluetoothLauncher.launch(intent)
                             },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = tonalButtonColor,
+                                contentColor = tonalButtonContent,
+                            )
                         ) {
                             Text("开启蓝牙")
                         }
@@ -265,7 +280,13 @@ private fun BleScreen() {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .widthIn(min = 180.dp),
-                enabled = primaryButtonEnabled
+                enabled = primaryButtonEnabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = primaryButtonColor,
+                    contentColor = primaryButtonContent,
+                    disabledContainerColor = primaryButtonDisabled,
+                    disabledContentColor = primaryButtonContent.copy(alpha = 0.6f),
+                )
             ) {
                 Text(primaryButtonLabel)
             }
