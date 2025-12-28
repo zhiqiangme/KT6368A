@@ -7,6 +7,11 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -117,10 +122,12 @@ private fun BleScreen() {
 
             override fun onConnectionChanged(connected: Boolean) {
                 uiState = uiState.copy(isConnected = connected)
+                updateTempNotification(context, uiState.temperatureC, connected)
             }
 
             override fun onTemperature(tempC: String?, rawAscii: String) {
                 uiState = uiState.copy(temperatureC = tempC, rawAscii = rawAscii)
+                updateTempNotification(context, tempC, uiState.isConnected)
             }
         })
     }
@@ -314,6 +321,46 @@ private fun BleScreen() {
     }
 }
 
+
+private const val NOTIFICATION_CHANNEL_ID = "kt6368a_temp"
+private const val NOTIFICATION_ID = 1001
+
+private fun ensureTempChannel(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    val manager = context.getSystemService(NotificationManager::class.java)
+    val existing = manager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
+    if (existing != null) return
+    val channel = NotificationChannel(
+        NOTIFICATION_CHANNEL_ID,
+        "KT6368A 温度",
+        NotificationManager.IMPORTANCE_LOW
+    )
+    channel.setSound(null, null)
+    channel.enableVibration(false)
+    manager.createNotificationChannel(channel)
+}
+
+private fun updateTempNotification(context: Context, tempC: String?, isConnected: Boolean) {
+    ensureTempChannel(context)
+    val text = if (isConnected && !tempC.isNullOrBlank()) {
+        "当前温度：${tempC}℃"
+    } else if (isConnected) {
+        "已连接，等待数据"
+    } else {
+        "未连接"
+    }
+    val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
+        .setSmallIcon(R.mipmap.ic_launcher)
+        .setContentTitle("KT6368A 温度")
+        .setContentText(text)
+        .setOngoing(true)
+        .setOnlyAlertOnce(true)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .setSound(null)
+        .setVibrate(null)
+        .build()
+    NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+}
 private fun requiredPermissions(): Array<String> {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(
@@ -332,4 +379,5 @@ private fun openAppSettings(context: android.content.Context) {
     }
     context.startActivity(intent)
 }
+
 
