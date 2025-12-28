@@ -1,5 +1,6 @@
 import { BleCallbacks, Kt6368aBle } from '../ble/Kt6368aBle';
 import abilityAccessCtrl, { Context, PermissionRequestResult, Permissions } from '@ohos.abilityAccessCtrl';
+import notificationManager from '@ohos.notificationManager';
 import getContext from '@ohos.app.ability.common';
 
 class BleCallbacksImpl implements BleCallbacks {
@@ -35,12 +36,14 @@ class BleCallbacksImpl implements BleCallbacks {
       this.owner.status = '已断开';
       this.owner.statusDetail = '';
       this.owner.isReceiving = false;
+      this.owner.clearTemperatureNotification();
     }
   }
 
   onTemperature(tempC: string | undefined, rawAscii: string): void {
     if (tempC) {
       this.owner.temperature = `${tempC}℃`;
+      this.owner.updateTemperatureNotification(tempC);
     }
     this.owner.rawValue = rawAscii;
     this.owner.isReceiving = true;
@@ -69,6 +72,10 @@ struct Index {
   private callbacks: BleCallbacks | undefined;
   private ble: Kt6368aBle | undefined;
   private animationTimerId: number | undefined;
+  private notificationReady: boolean = false;
+  private lastNotifiedTemp: string = '';
+  private readonly notificationId: number = 1001;
+  private hasNotified: boolean = false;
 
   async aboutToAppear() {
     if (!this.callbacks) {
@@ -204,6 +211,55 @@ struct Index {
       return;
     }
     this.ble?.startScan();
+  }
+
+  private async ensureNotificationSlot(): Promise<void> {
+    if (this.notificationReady) {
+      return;
+    }
+    try {
+      await notificationManager.addSlot(notificationManager.SlotType.CONTENT_INFORMATION);
+    } catch (_) {
+      // Ignore; slot may already exist.
+    }
+    this.notificationReady = true;
+  }
+
+  updateTemperatureNotification(tempC: string): void {
+    if (tempC === this.lastNotifiedTemp) {
+      return;
+    }
+    this.lastNotifiedTemp = tempC;
+    this.ensureNotificationSlot().then(() => {
+      const content: notificationManager.NotificationContent = {
+        notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
+        normal: {
+          title: 'KT6368A 当前温度',
+          text: `${tempC}℃`,
+          additionalText: '实时体温数据'
+        }
+      };
+      const request: notificationManager.NotificationRequest = {
+        id: this.notificationId,
+        notificationSlotType: notificationManager.SlotType.CONTENT_INFORMATION,
+        isOngoing: true,
+        updateOnly: this.hasNotified,
+        content
+      };
+      notificationManager.publish(request).then(() => {
+        this.hasNotified = true;
+      }).catch(() => {
+        // Ignore; notifications may be disabled by the user.
+      });
+    });
+  }
+
+  clearTemperatureNotification(): void {
+    this.lastNotifiedTemp = '';
+    this.hasNotified = false;
+    notificationManager.cancel(this.notificationId).catch(() => {
+      // Ignore; notification may not exist.
+    });
   }
 
   private startOrbAnimation(): void {

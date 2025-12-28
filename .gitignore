@@ -20,6 +20,10 @@ Desktop.ini
 *.iws
 .vscode/
 *.code-workspace
+.classpath
+.project
+.settings/
+.metadata/
 
 ############################
 # Android / Gradle
@@ -28,6 +32,10 @@ Desktop.ini
 **/.gradle/
 **/build/
 **/.kotlin/
+**/out/
+**/bin/
+**/gen/
+**/dist/
 
 # Local machine config (Android SDK path, etc.)
 **/local.properties
@@ -58,6 +66,11 @@ captures/
 
 # App analyzer output/cache
 **/.appanalyzer/
+
+############################
+# Node/JS toolchains (if used)
+############################
+**/node_modules/
 
 ############################
 # Secrets / keys (strongly recommended)
