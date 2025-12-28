@@ -1,4 +1,4 @@
-package com.example.kt6368a
+﻿package com.zhiqiangme.kt6368a
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -28,9 +28,9 @@ class BleManager(
     interface Callbacks {
         fun onStatus(message: String)
         fun onScanningChanged(isScanning: Boolean)
-        fun onDeviceFound(name: String?, address: String)
+        fun onScanResult(name: String?, address: String, rssi: Int)
         fun onConnectionChanged(connected: Boolean)
-        fun onTemperature(tempC: String?, rawHex: String)
+        fun onTemperature(tempC: String?, rawAscii: String)
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -41,6 +41,7 @@ class BleManager(
     private var gatt: BluetoothGatt? = null
     private val pendingDescriptors = ArrayDeque<BluetoothGattDescriptor>()
     private var isWritingDescriptor = false
+    private var isConnecting = false
 
     fun isBluetoothEnabled(): Boolean {
         return try {
@@ -60,6 +61,7 @@ class BleManager(
             postStatus("扫描已在进行")
             return
         }
+        isConnecting = false
 
         val filter = ScanFilter.Builder()
             .setServiceUuid(ParcelUuid(SERVICE_UUID))
@@ -77,16 +79,19 @@ class BleManager(
 
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 val device = result.device ?: return
-                postDeviceFound(device)
-                stopScan()
-                connect(device)
+                postScanResult(device, result.rssi)
+                if (!isConnecting) {
+                    isConnecting = true
+                    stopScan()
+                    connect(device)
+                }
             }
         }
 
         try {
             scanner?.startScan(listOf(filter), settings, scanCallback)
             postScanningChanged(true)
-            postStatus("正在扫描 KT6368A 服务...")
+            postStatus("正在扫描 KT6368A...")
         } catch (e: SecurityException) {
             postStatus("缺少蓝牙扫描权限")
             stopScan()
@@ -122,8 +127,13 @@ class BleManager(
 
     @SuppressLint("MissingPermission")
     private fun connect(device: BluetoothDevice) {
+        closeGatt()
         postStatus("正在连接 ${device.address}...")
-        gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        try {
+            gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        } catch (e: SecurityException) {
+            postStatus("缺少蓝牙连接权限")
+        }
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -256,16 +266,16 @@ class BleManager(
         mainHandler.post { callbacks.onScanningChanged(isScanning) }
     }
 
-    private fun postDeviceFound(device: BluetoothDevice) {
-        mainHandler.post { callbacks.onDeviceFound(device.name, device.address) }
+    private fun postScanResult(device: BluetoothDevice, rssi: Int) {
+        mainHandler.post { callbacks.onScanResult(device.name, device.address, rssi) }
     }
 
     private fun postConnectionChanged(connected: Boolean) {
         mainHandler.post { callbacks.onConnectionChanged(connected) }
     }
 
-    private fun postTemperature(tempC: String?, rawHex: String) {
-        mainHandler.post { callbacks.onTemperature(tempC, rawHex) }
+    private fun postTemperature(tempC: String?, rawAscii: String) {
+        mainHandler.post { callbacks.onTemperature(tempC, rawAscii) }
     }
 
     private fun parseTemperatureFromAscii(ascii: String): String? {
@@ -287,3 +297,4 @@ class BleManager(
         private val TEMP_REGEX = Regex("temp=([+-]?\\d+(?:\\.\\d+)?)C", RegexOption.IGNORE_CASE)
     }
 }
+

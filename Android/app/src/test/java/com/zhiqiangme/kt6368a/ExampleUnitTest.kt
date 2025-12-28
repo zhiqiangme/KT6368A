@@ -1,4 +1,4 @@
-package com.example.kt6368a
+﻿package com.zhiqiangme.kt6368a
 
 import org.junit.Test
 

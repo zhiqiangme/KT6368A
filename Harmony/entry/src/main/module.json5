@@ -12,16 +12,44 @@
     "pages": "$profile:main_pages",
     "requestPermissions": [
       {
-        "name": "ohos.permission.ACCESS_BLUETOOTH"
+        "name": "ohos.permission.ACCESS_BLUETOOTH",
+        "reason": "$string:perm_access_bluetooth_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
       },
       {
-        "name": "ohos.permission.USE_BLUETOOTH"
+        "name": "ohos.permission.USE_BLUETOOTH",
+        "reason": "$string:perm_use_bluetooth_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
       },
       {
-        "name": "ohos.permission.DISCOVER_BLUETOOTH"
+        "name": "ohos.permission.DISCOVER_BLUETOOTH",
+        "reason": "$string:perm_discover_bluetooth_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
       },
       {
-        "name": "ohos.permission.LOCATION"
+        "name": "ohos.permission.LOCATION",
+        "reason": "$string:perm_location_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
       }
     ],
     "abilities": [

@@ -1,6 +1,20 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\Mydei\\.ohos\\config\\default_Harmony_Snll_Lp2grmUby35Eohmhh1znPl5DkPfYktJBTNZ1c4=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BB33EFDB6972217F5E95944855E1C9C93193DE1BFC0555D0F0704026A2337723929CD0FAAFB7829",
+          "profile": "C:\\Users\\Mydei\\.ohos\\config\\default_Harmony_Snll_Lp2grmUby35Eohmhh1znPl5DkPfYktJBTNZ1c4=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\Mydei\\.ohos\\config\\default_Harmony_Snll_Lp2grmUby35Eohmhh1znPl5DkPfYktJBTNZ1c4=.p12",
+          "storePassword": "0000001B642D5DFA56F59E65296B47EE71E37F343130423011F6840A83ABF609687F46E820E2D67C558B20"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",

@@ -1,4 +1,4 @@
-package com.example.kt6368a.ui.theme
+﻿package com.zhiqiangme.kt6368a.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

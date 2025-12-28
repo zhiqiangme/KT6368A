@@ -29,6 +29,21 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
     });
+
+    windowStage.getMainWindow((err, win) => {
+      if (err.code) {
+        hilog.error(DOMAIN, 'testTag', 'Failed to get main window. Cause: %{public}s', JSON.stringify(err));
+        return;
+      }
+      win.setWindowLayoutFullScreen(true);
+      win.setWindowSystemBarEnable(['status', 'navigation']);
+      win.setSystemBarProperties({
+        statusBarColor: '#00000000',
+        navigationBarColor: '#00000000',
+        statusBarContentColor: 'dark',
+        navigationBarContentColor: 'dark'
+      });
+    });
   }
 
   onWindowStageDestroy(): void {

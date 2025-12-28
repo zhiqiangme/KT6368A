@@ -1,15 +1,15 @@
-plugins {
+﻿plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
-    namespace = "com.example.kt6368a"
+    namespace = "com.zhiqiangme.kt6368a"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.kt6368a"
+        applicationId = "com.zhiqiangme.kt6368a"
         minSdk = 32
         targetSdk = 32
         versionCode = 1
@@ -57,3 +57,4 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+

@@ -10,7 +10,23 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "KT6368A"
+    },
+    {
+      "name": "perm_access_bluetooth_reason",
+      "value": "用于扫描并连接 KT6368A 体温计。"
+    },
+    {
+      "name": "perm_use_bluetooth_reason",
+      "value": "用于通过蓝牙接收温度数据。"
+    },
+    {
+      "name": "perm_discover_bluetooth_reason",
+      "value": "用于发现附近的蓝牙设备。"
+    },
+    {
+      "name": "perm_location_reason",
+      "value": "用于蓝牙扫描所需的系统定位权限。"
     }
   ]
 }

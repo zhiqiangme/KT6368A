@@ -1,31 +1,33 @@
-package com.example.kt6368a
+﻿package com.zhiqiangme.kt6368a
 
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,15 +39,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.kt6368a.ui.theme.KT6368ATheme
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.zhiqiangme.kt6368a.ui.theme.KT6368ATheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +69,7 @@ private data class BleUiState(
     val deviceName: String? = null,
     val deviceAddress: String? = null,
     val temperatureC: String? = null,
-    val rawHex: String? = null,
+    val rawAscii: String? = null,
     val isScanning: Boolean = false,
     val isConnected: Boolean = false,
 )
@@ -76,6 +79,7 @@ private fun BleScreen() {
     val context = LocalContext.current
     val activity = context as Activity
     var uiState by remember { mutableStateOf(BleUiState()) }
+    var hasRequestedPermissions by remember { mutableStateOf(false) }
 
     val requiredPermissions = remember { requiredPermissions() }
     val permissionsGranted = requiredPermissions.all { permission ->
@@ -94,7 +98,6 @@ private fun BleScreen() {
     val enableBluetoothLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        // Status is refreshed by the next recomposition.
         uiState = uiState.copy(status = "蓝牙启用请求已完成")
     }
 
@@ -108,7 +111,7 @@ private fun BleScreen() {
                 uiState = uiState.copy(isScanning = isScanning)
             }
 
-            override fun onDeviceFound(name: String?, address: String) {
+            override fun onScanResult(name: String?, address: String, rssi: Int) {
                 uiState = uiState.copy(deviceName = name, deviceAddress = address)
             }
 
@@ -116,8 +119,8 @@ private fun BleScreen() {
                 uiState = uiState.copy(isConnected = connected)
             }
 
-            override fun onTemperature(tempC: String?, rawHex: String) {
-                uiState = uiState.copy(temperatureC = tempC, rawHex = rawHex)
+            override fun onTemperature(tempC: String?, rawAscii: String) {
+                uiState = uiState.copy(temperatureC = tempC, rawAscii = rawAscii)
             }
         })
     }
@@ -128,15 +131,13 @@ private fun BleScreen() {
 
     val bluetoothEnabled = bleManager.isBluetoothEnabled()
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color(0xFFf5efe6), Color(0xFFffffff))
+                        colors = listOf(Color(0xFFF5EFE6), Color(0xFFFFFFFF))
                     )
                 )
                 .statusBarsPadding()
@@ -222,7 +223,7 @@ private fun BleScreen() {
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = "接收数据：${uiState.rawHex ?: "无"}",
+                        text = "接收数据：${uiState.rawAscii ?: "无"}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -232,7 +233,26 @@ private fun BleScreen() {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (!permissionsGranted) {
                         FilledTonalButton(
-                            onClick = { permissionLauncher.launch(requiredPermissions) },
+                            onClick = {
+                                val missing = requiredPermissions.filter { permission ->
+                                    ContextCompat.checkSelfPermission(
+                                        context,
+                                        permission
+                                    ) != PackageManager.PERMISSION_GRANTED
+                                }
+                                val canRequest = missing.any { permission ->
+                                    ActivityCompat.shouldShowRequestPermissionRationale(
+                                        activity,
+                                        permission
+                                    )
+                                }
+                                if (hasRequestedPermissions && !canRequest) {
+                                    openAppSettings(context)
+                                } else {
+                                    hasRequestedPermissions = true
+                                    permissionLauncher.launch(requiredPermissions)
+                                }
+                            },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = tonalButtonColor,
@@ -304,3 +324,12 @@ private fun requiredPermissions(): Array<String> {
         arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION)
     }
 }
+
+private fun openAppSettings(context: android.content.Context) {
+    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.fromParts("package", context.packageName, null)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
+}
+
