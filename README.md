@@ -1,6 +1,7 @@
-# KT6368A
+# STM32_Thermometer
 
-KT6368A 蓝牙设备配套应用，支持 Android 与 HarmonyOS。
+基于 STM32 和 KT6368A 蓝牙芯片的温度计，包含 Android 和 HarmonyOS 配套 APP 源码。 
+项目地址https://github.com/zhiqiangme/STM32_Thermometer
 
 ## Android
 - 目录：`/android`

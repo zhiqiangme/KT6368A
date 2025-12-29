@@ -81,3 +81,34 @@ captures/
 *.pem
 *.key
 *.mobileprovision
+
+
+
+# --- STM32 / Keil MDK 忽略规则 ---
+*.o
+*.d
+*.crf
+*.dep
+*.axf
+*.htm
+*.lnp
+*.sct
+*.lst
+*.map
+*.iex
+*.uvguix.*
+*.uvoptx
+*.bak
+JLinkLog.txt
+*.scvd
+
+Objects/
+Listings/
+
+# 如果使用 STM32CubeIDE
+Debug/
+Release/
+.settings/
+
+*.mxproject
+*.backup
