@@ -1,0 +1,43 @@
+####################################
+# Android 忽略规则 (Gradle / Android Studio)
+####################################
+
+# --- IDE 配置 ---
+**/.idea/
+**/*.iml
+**/*.ipr
+**/*.iws
+**/.classpath
+**/.project
+**/.metadata/
+
+# --- Gradle 缓存和构建输出 ---
+**/.gradle/
+**/build/
+**/.kotlin/
+**/out/
+**/bin/
+**/gen/
+**/dist/
+
+# --- 本地配置 ---
+**/local.properties
+
+# --- Android 构建产物 ---
+**/*.apk
+**/*.aab
+**/*.ap_
+**/*.dex
+**/*.class
+
+# --- Native 构建中间文件 ---
+**/.externalNativeBuild/
+**/.cxx/
+**/captures/
+
+# --- ProGuard ---
+**/proguard/
+
+# --- Android Studio ---
+**/*.hprof
+**/.navigation/

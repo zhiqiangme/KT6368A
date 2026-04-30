@@ -1,12 +1,43 @@
-/node_modules
-/oh_modules
-/local.properties
-/.idea
-**/build
-/.hvigor
-.cxx
-/.clangd
-/.clang-format
-/.clang-tidy
-**/.test
-/.appanalyzer
+####################################
+# Harmony 忽略规则 (DevEco / hvigor / ohpm)
+####################################
+
+# --- IDE 配置 ---
+.idea/
+**/.idea/
+**/*.iml
+
+# --- hvigor 生成的缓存/输出 ---
+.hvigor/
+**/.hvigor/
+
+# --- ohpm 依赖缓存 ---
+oh_modules/
+**/oh_modules/
+.ohpm/
+**/.ohpm/
+
+# --- App Analyzer 输出/缓存 ---
+.appanalyzer/
+**/.appanalyzer/
+
+# --- Harmony 构建输出 ---
+build/
+**/build/
+libs/
+**/libs/
+
+# --- Node.js ---
+node_modules/
+**/node_modules/
+
+# --- 本地配置和工具缓存 ---
+local.properties
+**/local.properties
+.cxx/
+**/.cxx/
+.clangd
+.clang-format
+.clang-tidy
+**/.test/
+**/.preview/
