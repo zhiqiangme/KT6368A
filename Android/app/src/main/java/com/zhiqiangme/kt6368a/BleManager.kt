@@ -40,9 +40,10 @@ class BleManager(
 
     private val mainHandler = Handler(Looper.getMainLooper()) // 主线程 Handler，用于回调切线程
     private val bluetoothManager = context.getSystemService(BluetoothManager::class.java)
-    private val adapter = bluetoothManager.adapter             // 蓝牙适配器
+    private val adapter = bluetoothManager?.adapter             // 蓝牙适配器
     private var scanner: BluetoothLeScanner? = null            // BLE 扫描器
     private var scanCallback: ScanCallback? = null             // 当前扫描回调
+    private val gattLock = Any()                               // GATT 操作锁
     @Volatile
     private var gatt: BluetoothGatt? = null                    // 当前 GATT 连接
     private val pendingDescriptors = ArrayDeque<BluetoothGattDescriptor>() // 待写入的描述符队列
@@ -133,12 +134,13 @@ class BleManager(
     /** 断开当前 BLE 连接 */
     @SuppressLint("MissingPermission")
     fun disconnect() {
-        if (gatt == null) {
+        val currentGatt = synchronized(gattLock) { gatt }
+        if (currentGatt == null) {
             postConnectionChanged(false)
             return
         }
         postStatus("正在断开连接...")
-        gatt?.disconnect()
+        currentGatt.disconnect()
     }
 
     /** 释放资源，停止扫描并关闭 GATT 连接 */
@@ -153,8 +155,10 @@ class BleManager(
         closeGatt()
         postStatus("正在连接 ${device.address}...")
         try {
-            gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+            val newGatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+            synchronized(gattLock) { gatt = newGatt }
         } catch (e: SecurityException) {
+            isConnecting = false
             postStatus("缺少蓝牙连接权限")
         }
     }
@@ -163,6 +167,13 @@ class BleManager(
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    isConnecting = false
+                    postConnectionChanged(false)
+                    postStatus("连接失败：$status")
+                    closeGatt()
+                    return
+                }
                 postConnectionChanged(true)
                 postStatus("已连接，正在发现服务...")
                 gatt.discoverServices()
@@ -272,28 +283,33 @@ class BleManager(
     /** 从队列取出下一个描述符并写入 */
     private fun writeNextDescriptor(gatt: BluetoothGatt) {
         val next = synchronized(pendingDescriptors) {
-            pendingDescriptors.pollFirst()
+            val n = pendingDescriptors.pollFirst()
+            if (n == null) {
+                isWritingDescriptor = false
+            } else {
+                isWritingDescriptor = true
+            }
+            n
         }
-        if (next == null) {
-            isWritingDescriptor = false
-            return
-        }
-        isWritingDescriptor = true
+        if (next == null) return
         val ok = gatt.writeDescriptor(next)
         if (!ok) {
             postStatus("描述符写入被拒绝")
-            isWritingDescriptor = false
+            synchronized(pendingDescriptors) { isWritingDescriptor = false }
         }
     }
 
     /** 关闭 GATT 连接并释放资源 */
     @SuppressLint("MissingPermission")
     private fun closeGatt() {
-        gatt?.close()
-        gatt = null
+        synchronized(gattLock) {
+            gatt?.close()
+            gatt = null
+        }
     }
 
     // 以下 post 方法将回调切换到主线程执行
+    private fun postStatus(message: String) {
         mainHandler.post { callbacks.onStatus(message) }
     }
 
