@@ -35,24 +35,15 @@ export class Kt6368aBle {
       if (name.toUpperCase().includes(TARGET_NAME_TOKEN)) {
         if (!this.bestTargetResult || device.rssi > this.bestTargetResult.rssi) {
           this.bestTargetResult = device;
+          this.callbacks.onDeviceFound(name, device.deviceId);
         }
-      }
-      if (name.toUpperCase().includes(TARGET_NAME_TOKEN)) {
-        this.deviceId = device.deviceId;
-        this.callbacks.onDeviceFound(name, this.deviceId);
-        this.stopScan();
-        if (this.deviceId) {
-          this.connect(this.deviceId);
-        } else {
-          this.callbacks.onStatus('Device id not found in scan result.');
-        }
-        return;
       }
     }
   };
 
   private readonly connectStateHandler = (state: ble.BLEConnectionChangeState) => {
     const stateCode = state.state;
+    const errorCode = state.errorCode;
     const connected = stateCode === constant.ProfileConnectionState.STATE_CONNECTED;
     const isConnecting = stateCode === constant.ProfileConnectionState.STATE_CONNECTING;
     const isDisconnecting = stateCode === constant.ProfileConnectionState.STATE_DISCONNECTING;
@@ -67,7 +58,7 @@ export class Kt6368aBle {
     } else if (isDisconnected) {
       label = 'disconnected';
     }
-    this.callbacks.onDebug(`Connection state: ${stateCode} (${label})`);
+    this.callbacks.onDebug(`Connection state: ${stateCode} (${label}), error: ${errorCode}`);
     if (connected) {
       this.callbacks.onConnectionChanged(true);
       this.callbacks.onStatus('Connected. Discovering services...');
@@ -78,7 +69,12 @@ export class Kt6368aBle {
       this.callbacks.onStatus('Disconnecting...');
     } else if (isDisconnected) {
       this.callbacks.onConnectionChanged(false);
-      this.callbacks.onStatus('Disconnected.');
+      if (errorCode && errorCode !== 0) {
+        this.callbacks.onStatus(`Disconnected with error: ${errorCode}`);
+        this.callbacks.onDebug(`Disconnected with error code: ${errorCode}`);
+      } else {
+        this.callbacks.onStatus('Disconnected.');
+      }
       this.closeGatt();
     }
   };
@@ -181,6 +177,9 @@ export class Kt6368aBle {
   }
 
   private connect(deviceId: string): void {
+    if (this.gattClient) {
+      this.closeGatt();
+    }
     this.callbacks.onStatus(`Connecting ${deviceId}...`);
     this.callbacks.onDebug(`Connecting to ${deviceId}`);
     try {
@@ -209,15 +208,15 @@ export class Kt6368aBle {
         this.callbacks.onDebug('Service FFF0 not found.');
         return;
       }
-      this.enableNotify(service, NOTIFY_UUID_1);
-      this.enableNotify(service, NOTIFY_UUID_2);
+      await this.enableNotify(service, NOTIFY_UUID_1);
+      await this.enableNotify(service, NOTIFY_UUID_2);
     } catch (err) {
       this.callbacks.onStatus(`Service discovery failed: ${JSON.stringify(err)}`);
       this.callbacks.onDebug(`Service discovery failed: ${JSON.stringify(err)}`);
     }
   }
 
-  private enableNotify(service: ble.GattService, uuid: string): void {
+  private async enableNotify(service: ble.GattService, uuid: string): Promise<void> {
     const characteristic = service.characteristics.find((item) =>
       this.isUuidMatch(item.characteristicUuid, uuid)
     );
@@ -226,15 +225,18 @@ export class Kt6368aBle {
       this.callbacks.onDebug(`Notify characteristic missing: ${uuid}`);
       return;
     }
-    this.gattClient?.setCharacteristicChangeNotification(characteristic, true)
-      .then(() => {
-        this.callbacks.onStatus(`Notify enabled: ${uuid}`);
-        this.callbacks.onDebug(`Notify enabled: ${uuid}`);
-      })
-      .catch((err: BusinessError) => {
-        this.callbacks.onStatus(`Enable notify failed: ${err?.message ?? JSON.stringify(err)}`);
-        this.callbacks.onDebug(`Enable notify failed: ${err?.message ?? JSON.stringify(err)}`);
-      });
+    if (!this.gattClient) {
+      return;
+    }
+    try {
+      await this.gattClient.setCharacteristicChangeNotification(characteristic, true);
+      this.callbacks.onStatus(`Notify enabled: ${uuid}`);
+      this.callbacks.onDebug(`Notify enabled: ${uuid}`);
+    } catch (err) {
+      const error = err as BusinessError;
+      this.callbacks.onStatus(`Enable notify failed: ${error?.message ?? JSON.stringify(err)}`);
+      this.callbacks.onDebug(`Enable notify failed: ${error?.message ?? JSON.stringify(err)}`);
+    }
   }
 
   private bytesToAscii(value: ArrayBuffer | Uint8Array): string {

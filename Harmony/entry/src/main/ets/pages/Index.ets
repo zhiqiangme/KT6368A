@@ -49,6 +49,7 @@ class BleCallbacksImpl implements BleCallbacks {
     this.owner.isReceiving = true;
     this.owner.status = '接收温度中';
     this.owner.statusDetail = '';
+    this.owner.resetReceiveTimeout();
   }
 
   onDebug(message: string): void {
@@ -76,6 +77,7 @@ struct Index {
   private lastNotifiedTemp: string = '';
   private readonly notificationId: number = 1001;
   private hasNotified: boolean = false;
+  private receiveTimeoutId: number | undefined;
 
   async aboutToAppear() {
     if (!this.callbacks) {
@@ -91,6 +93,7 @@ struct Index {
   aboutToDisappear() {
     this.ble?.close();
     this.stopOrbAnimation();
+    this.clearReceiveTimeout();
   }
 
   private async requestPermissions(): Promise<void> {
@@ -103,43 +106,15 @@ struct Index {
         'ohos.permission.DISCOVER_BLUETOOTH',
         'ohos.permission.LOCATION'
       ];
-      const tokenId = context.applicationInfo?.accessTokenId;
-      if (tokenId !== undefined) {
-        let allGranted = true;
-        for (let i = 0; i < permissions.length; i++) {
-          const result = atManager.checkAccessTokenSync(tokenId, permissions[i]);
-          if (result !== abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
-            allGranted = false;
-            break;
-          }
-        }
-        if (allGranted) {
-          this.status = '蓝牙未连接';
-          this.statusDetail = '';
-          return;
-        }
-      }
       const result: PermissionRequestResult =
         await atManager.requestPermissionsFromUser(context, permissions);
-      let denied = result.authResults && result.authResults.some((item: number) => item !== 0);
-      if (!denied && (!result.authResults || result.authResults.length === 0) && tokenId !== undefined) {
-        let allGranted = true;
-        for (let i = 0; i < permissions.length; i++) {
-          const check = atManager.checkAccessTokenSync(tokenId, permissions[i]);
-          if (check !== abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
-            allGranted = false;
-            break;
-          }
-        }
-        denied = !allGranted;
-      }
+      const denied = result.authResults?.some((item: number) => item !== 0);
       if (denied) {
         this.status = '蓝牙权限被拒绝';
-        this.statusDetail = '';
       } else {
         this.status = '蓝牙未连接';
-        this.statusDetail = '';
       }
+      this.statusDetail = '';
     } catch (err) {
       this.status = '权限申请失败';
       this.statusDetail = '';
@@ -271,7 +246,7 @@ struct Index {
         this.orbShift = !this.orbShift;
         this.orbShift2 = !this.orbShift2;
       });
-      this.animationTimerId = setTimeout(loop, 5200);
+      this.animationTimerId = setTimeout(loop, 5000);
     };
     loop();
   }
@@ -282,6 +257,21 @@ struct Index {
     }
     clearTimeout(this.animationTimerId);
     this.animationTimerId = undefined;
+  }
+
+  resetReceiveTimeout(): void {
+    this.clearReceiveTimeout();
+    this.receiveTimeoutId = setTimeout(() => {
+      this.isReceiving = false;
+      this.receiveTimeoutId = undefined;
+    }, 10000);
+  }
+
+  private clearReceiveTimeout(): void {
+    if (this.receiveTimeoutId !== undefined) {
+      clearTimeout(this.receiveTimeoutId);
+      this.receiveTimeoutId = undefined;
+    }
   }
 
   build() {
