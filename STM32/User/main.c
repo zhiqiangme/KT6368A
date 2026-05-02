@@ -13,39 +13,37 @@ int main(void)
 {
 	uint8_t DAT;
 	
-	HAL_Init();		//³õÊ¼»¯HAL¿â
+	HAL_Init();		//ï¿½ï¿½Ê¼ï¿½ï¿½HALï¿½ï¿½
 
-    sys_stm32_clock_init(RCC_PLL_MUL9);     /* ÉèÖÃÊ±ÖÓ, 72Mhz */
-    delay_init(72);                         /* ÑÓÊ±³õÊ¼»¯ */
-    usart_init(115200);                     /* ´®¿Ú³õÊ¼»¯Îª115200 */
+    sys_stm32_clock_init(RCC_PLL_MUL9);     /* ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½, 72Mhz */
+    delay_init(72);                         /* ï¿½ï¿½Ê±ï¿½ï¿½Ê¼ï¿½ï¿½ */
+    usart_init(115200);                     /* ï¿½ï¿½ï¿½Ú³ï¿½Ê¼ï¿½ï¿½Îª115200 */
 	/* Add your application code here */
 	
-	/*Ä£¿é³õÊ¼»¯*/
-	OLED_Init();		//OLED³õÊ¼»¯
+	/*Ä£ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½*/
+	OLED_Init();		//OLEDï¿½ï¿½Ê¼ï¿½ï¿½
 	
 	T117_Init();
 	delay_ms(100);
 	
-	/*OLEDÏÔÊ¾*/
-	OLED_ShowString(24, 0, "µç×ÓÎÂ¶È¼Æ", OLED_8X16);
+	/*OLEDï¿½ï¿½Ê¾*/
+	OLED_ShowString(24, 0, "ï¿½ï¿½ï¿½ï¿½ï¿½Â¶È¼ï¿½", OLED_8X16);
 	/* Infinite loop */
 	while (1)
 	{
-		// ¶ÁÈ¡×´Ì¬¼Ä´æÆ÷£¬¼ì²éÎÂ¶È×ª»»ÊÇ·ñÍê³É
+		// ï¿½ï¿½È¡×´Ì¬ï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¶ï¿½×ªï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½
 		if(T117_R_REG(0x03, &DAT) == 0)
 		{
-			// ¼ì²éÎÂ¶È×ª»»×´Ì¬Î»£¨Î»5£©£º0=Íê³É£¬1=×ª»»ÖÐ
+			// ï¿½ï¿½ï¿½ï¿½Â¶ï¿½×ªï¿½ï¿½×´Ì¬Î»ï¿½ï¿½Î»5ï¿½ï¿½ï¿½ï¿½0=ï¿½ï¿½É£ï¿½1=×ªï¿½ï¿½ï¿½ï¿½
 			if((DAT & 0x20) == 0)
 			{
-				// ÎÂ¶È×ª»»Íê³É, ¶ÁÈ¡ÎÂ¶ÈÖµ, ´æÈëtemperature
+				// ï¿½Â¶ï¿½×ªï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½È¡ï¿½Â¶ï¿½Öµ, ï¿½ï¿½ï¿½ï¿½temperature
 				T117_R_TEMP(&temperature);
-				//sprintf(temperature_string, "ÎÂ¶È:%5.2fC", temperature);
-				//OLED_ShowString(1, 1, temperature_string, OLED_8X16);
-				OLED_Printf(0, 16, OLED_8X16, "ÎÂ¶È:%5.2fC", temperature);
+				OLED_ClearArea(0, 16, 128, 16);  // ï¿½ï¿½ï¿½ï¿½ï¿½Éµï¿½Ê¾ï¿½ï¿½ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½
+				OLED_Printf(0, 16, OLED_8X16, "Temp:%5.2fC", temperature);
 			}
 		}
 
-		OLED_Printf(30, 48, OLED_8X16, "¼ì²âÍê³É");
 		OLED_Update();
 		delay_ms(500);
 	}

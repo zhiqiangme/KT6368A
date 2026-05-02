@@ -1,25 +1,25 @@
 #include "MyI2C.h"
 
-/* Òý½Å²Ù×÷ºê¶¨Òå */
+/* ï¿½ï¿½ï¿½Å²ï¿½ï¿½ï¿½ï¿½ê¶¨ï¿½ï¿½ */
 #define MyI2C_W_SCL(x) HAL_GPIO_WritePin(MyI2C_GPIO_PORT, MyI2C_SCL_PIN, (x) ? GPIO_PIN_SET : GPIO_PIN_RESET)
 #define MyI2C_W_SDA(x) HAL_GPIO_WritePin(MyI2C_GPIO_PORT, MyI2C_SDA_PIN, (x) ? GPIO_PIN_SET : GPIO_PIN_RESET)
 #define MyI2C_R_SDA() (HAL_GPIO_ReadPin(MyI2C_GPIO_PORT, MyI2C_SDA_PIN) == GPIO_PIN_SET ? 1 : 0)
 
-/* ¾«È·ÑÓÊ±º¯Êý */
+/* ï¿½ï¿½È·ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ */
 static void MyI2C_Delay(void)
 {
-    for(volatile int i = 0; i < 5; i++);  // Ô¼1-2usÑÓÊ±
+    for(volatile int i = 0; i < 20; i++);  // ~5us at 72MHz, safe for 100kHz I2C
 }
 
-/* Òý½Å³õÊ¼»¯ */
+/* ï¿½ï¿½ï¿½Å³ï¿½Ê¼ï¿½ï¿½ */
 void MyI2C_Init(void)
 {
-    __HAL_RCC_GPIOB_CLK_ENABLE();  // STM32F0ÖÐÒ²ÊÇÕâÑùÐ´
+    __HAL_RCC_GPIOB_CLK_ENABLE();  // STM32F0ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð´
     
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     GPIO_InitStruct.Pin = MyI2C_SCL_PIN | MyI2C_SDA_PIN;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;    // ¿ªÂ©Êä³ö
-    GPIO_InitStruct.Pull = GPIO_PULLUP;            // ¹Ø¼ü£º±ØÐëÉÏÀ­£¡
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;    // ï¿½ï¿½Â©ï¿½ï¿½ï¿½
+    GPIO_InitStruct.Pull = GPIO_PULLUP;            // ï¿½Ø¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(MyI2C_GPIO_PORT, &GPIO_InitStruct);
     
@@ -28,129 +28,133 @@ void MyI2C_Init(void)
 }
 
 /**
-  * @brief  I2C¿ªÊ¼ÐÅºÅ
+  * @brief  I2Cï¿½ï¿½Ê¼ï¿½Åºï¿½
   */
 void MyI2C_Start(void)
 {
     MyI2C_W_SDA(1);
     MyI2C_W_SCL(1);
     MyI2C_Delay();
-    MyI2C_W_SDA(0);     // START: SDAÏÂ½µÑØ
+    MyI2C_W_SDA(0);     // START: SDAï¿½Â½ï¿½ï¿½ï¿½
     MyI2C_Delay();
-    MyI2C_W_SCL(0);     // ÎªÊý¾Ý´«Êä×¼±¸
+    MyI2C_W_SCL(0);     // Îªï¿½ï¿½ï¿½Ý´ï¿½ï¿½ï¿½×¼ï¿½ï¿½
 }
 
 /**
-  * @brief  I2CÍ£Ö¹ÐÅºÅ
+  * @brief  I2CÍ£Ö¹ï¿½Åºï¿½
   */
 void MyI2C_Stop(void)
 {
     MyI2C_W_SDA(0);
     MyI2C_W_SCL(1);
     MyI2C_Delay();
-    MyI2C_W_SDA(1);     // STOP: SDAÉÏÉýÑØ
+    MyI2C_W_SDA(1);     // STOP: SDAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     MyI2C_Delay();
 }
 
 /**
-  * @brief  I2C·¢ËÍÒ»¸ö×Ö½Ú
+  * @brief  I2Cï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ö½ï¿½
   */
 void MyI2C_SendByte(uint8_t Byte)
 {
     uint8_t i;
     for (i = 0; i < 8; i++)
     {
-        MyI2C_W_SDA((Byte & 0x80) >> 7);  // ·¢ËÍ×î¸ßÎ»
+        MyI2C_W_SDA((Byte & 0x80) >> 7);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»
         MyI2C_Delay();
-        MyI2C_W_SCL(1);                   // Ê±ÖÓ¸ßµçÆ½
+        MyI2C_W_SCL(1);                   // Ê±ï¿½Ó¸ßµï¿½Æ½
         MyI2C_Delay();
-        MyI2C_W_SCL(0);                   // Ê±ÖÓµÍµçÆ½
+        MyI2C_W_SCL(0);                   // Ê±ï¿½ÓµÍµï¿½Æ½
         MyI2C_Delay();
-        Byte <<= 1;                       // ×¼±¸ÏÂÒ»Î»
+        Byte <<= 1;                       // ×¼ï¿½ï¿½ï¿½ï¿½Ò»Î»
     }
 }
 
 /**
-  * @brief  I2C½ÓÊÕÒ»¸ö×Ö½Ú
+  * @brief  I2Cï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ö½ï¿½
   */
 uint8_t MyI2C_ReceiveByte(void)
 {
     uint8_t i, Byte = 0;
     
-    MyI2C_W_SDA(1);  // ÊÍ·ÅSDA£¬ÈÃ´Ó»ú¿ØÖÆ
+    MyI2C_W_SDA(1);  // ï¿½Í·ï¿½SDAï¿½ï¿½ï¿½Ã´Ó»ï¿½ï¿½ï¿½ï¿½ï¿½
     
     for (i = 0; i < 8; i++)
     {
-        MyI2C_W_SCL(1);           // ÊÍ·ÅSCL
+        MyI2C_W_SCL(1);           // ï¿½Í·ï¿½SCL
         MyI2C_Delay();
-        Byte <<= 1;               // ×óÒÆ
-        if (MyI2C_R_SDA())        // ¶ÁÈ¡SDA
+        Byte <<= 1;               // ï¿½ï¿½ï¿½ï¿½
+        if (MyI2C_R_SDA())        // ï¿½ï¿½È¡SDA
             Byte |= 0x01;
-        MyI2C_W_SCL(0);           // À­µÍSCL
+        MyI2C_W_SCL(0);           // ï¿½ï¿½ï¿½ï¿½SCL
         MyI2C_Delay();
     }
     return Byte;
 }
 
 /**
-  * @brief  I2C·¢ËÍÓ¦´ðÎ»
-  * @param  AckBit: 0-Ó¦´ð(ACK), 1-·ÇÓ¦´ð(NACK)
+  * @brief  I2Cï¿½ï¿½ï¿½ï¿½Ó¦ï¿½ï¿½Î»
+  * @param  AckBit: 0-Ó¦ï¿½ï¿½(ACK), 1-ï¿½ï¿½Ó¦ï¿½ï¿½(NACK)
   */
 void MyI2C_SendAck(uint8_t AckBit)
 {
-    MyI2C_W_SDA(AckBit);        // ÉèÖÃACK/NACK
+    MyI2C_W_SDA(AckBit);        // ï¿½ï¿½ï¿½ï¿½ACK/NACK
     MyI2C_Delay();
-    MyI2C_W_SCL(1);             // Ê±ÖÓ¸ßµçÆ½
+    MyI2C_W_SCL(1);             // Ê±ï¿½Ó¸ßµï¿½Æ½
     MyI2C_Delay();
-    MyI2C_W_SCL(0);             // Ê±ÖÓµÍµçÆ½
+    MyI2C_W_SCL(0);             // Ê±ï¿½ÓµÍµï¿½Æ½
     MyI2C_Delay();
 }
 
 /**
-  * @brief  I2C½ÓÊÕÓ¦´ðÎ»
-  * @retval 0-Ó¦´ð(ACK), 1-·ÇÓ¦´ð(NACK)
+  * @brief  I2Cï¿½ï¿½ï¿½ï¿½Ó¦ï¿½ï¿½Î»
+  * @retval 0-Ó¦ï¿½ï¿½(ACK), 1-ï¿½ï¿½Ó¦ï¿½ï¿½(NACK)
   */
 uint8_t MyI2C_ReceiveAck(void)
 {
     uint8_t AckBit;
-    
-    MyI2C_W_SDA(1);             // ÊÍ·ÅSDA£¬ÈÃ´Ó»ú¿ØÖÆ
+    uint32_t timeout = 1000;
+
+    MyI2C_W_SDA(1);             // ï¿½Í·ï¿½SDAï¿½ï¿½ï¿½Ã´Ó»ï¿½ï¿½ï¿½ï¿½ï¿½
     MyI2C_Delay();
-    MyI2C_W_SCL(1);             // Ê±ÖÓ¸ßµçÆ½
+    MyI2C_W_SCL(1);             // Ê±ï¿½Ó¸ßµï¿½Æ½
     MyI2C_Delay();
-    AckBit = MyI2C_R_SDA();     // ¶ÁÈ¡ACKÎ»
-    MyI2C_W_SCL(0);             // Ê±ÖÓµÍµçÆ½
+
+    while (MyI2C_R_SDA() && timeout--);  // ï¿½ï¿½ï¿½È´Ó»ï¿½Ó¦ï¿½ï¿½
+
+    AckBit = MyI2C_R_SDA();     // ï¿½ï¿½È¡ACKÎ»
+    MyI2C_W_SCL(0);             // Ê±ï¿½ÓµÍµï¿½Æ½
     MyI2C_Delay();
-    
+
     return AckBit;              // 0=ACK, 1=NACK
 }
 
 /**
-  * @brief  MyI2CÐ´ÃüÁî£¨ÓÃÓÚOLEDµÈÉè±¸£©
+  * @brief  MyI2CÐ´ï¿½ï¿½ï¿½î£¨ï¿½ï¿½ï¿½ï¿½OLEDï¿½ï¿½ï¿½è±¸ï¿½ï¿½
   */
 void MyI2C_WriteCommand(uint8_t Command)
 {
     MyI2C_Start();
-    MyI2C_SendByte(0x78);       // ´Ó»úµØÖ·
-    MyI2C_ReceiveAck();         // ½ÓÊÕACK
-    MyI2C_SendByte(0x00);       // Ð´ÃüÁî
-    MyI2C_ReceiveAck();         // ½ÓÊÕACK
+    MyI2C_SendByte(0x78);       // ï¿½Ó»ï¿½ï¿½ï¿½Ö·
+    MyI2C_ReceiveAck();         // ï¿½ï¿½ï¿½ï¿½ACK
+    MyI2C_SendByte(0x00);       // Ð´ï¿½ï¿½ï¿½ï¿½
+    MyI2C_ReceiveAck();         // ï¿½ï¿½ï¿½ï¿½ACK
     MyI2C_SendByte(Command); 
-    MyI2C_ReceiveAck();         // ½ÓÊÕACK
+    MyI2C_ReceiveAck();         // ï¿½ï¿½ï¿½ï¿½ACK
     MyI2C_Stop();
 }
 
 /**
-  * @brief  MyI2CÐ´Êý¾Ý£¨ÓÃÓÚOLEDµÈÉè±¸£©
+  * @brief  MyI2CÐ´ï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½ï¿½ï¿½OLEDï¿½ï¿½ï¿½è±¸ï¿½ï¿½
   */
 void MyI2C_WriteData(uint8_t Data)
 {
     MyI2C_Start();
-    MyI2C_SendByte(0x78);       // ´Ó»úµØÖ·
-    MyI2C_ReceiveAck();         // ½ÓÊÕACK
-    MyI2C_SendByte(0x40);       // Ð´Êý¾Ý
-    MyI2C_ReceiveAck();         // ½ÓÊÕACK
+    MyI2C_SendByte(0x78);       // ï¿½Ó»ï¿½ï¿½ï¿½Ö·
+    MyI2C_ReceiveAck();         // ï¿½ï¿½ï¿½ï¿½ACK
+    MyI2C_SendByte(0x40);       // Ð´ï¿½ï¿½ï¿½ï¿½
+    MyI2C_ReceiveAck();         // ï¿½ï¿½ï¿½ï¿½ACK
     MyI2C_SendByte(Data);
-    MyI2C_ReceiveAck();         // ½ÓÊÕACK
+    MyI2C_ReceiveAck();         // ï¿½ï¿½ï¿½ï¿½ACK
     MyI2C_Stop();
 }
