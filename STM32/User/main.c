@@ -4,7 +4,7 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-float temperature; 
+float temperature;
 char temperature_string[24];
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -12,34 +12,34 @@ char temperature_string[24];
 int main(void)
 {
 	uint8_t DAT;
-	
-	HAL_Init();		//��ʼ��HAL��
 
-    sys_stm32_clock_init(RCC_PLL_MUL9);     /* ����ʱ��, 72Mhz */
-    delay_init(72);                         /* ��ʱ��ʼ�� */
-    usart_init(115200);                     /* ���ڳ�ʼ��Ϊ115200 */
-	/* Add your application code here */
-	
-	/*ģ���ʼ��*/
-	OLED_Init();		//OLED��ʼ��
-	
+	HAL_Init();		/* 初始化HAL库 */
+
+    sys_stm32_clock_init(RCC_PLL_MUL9);     /* 设置系统时钟, 72Mhz */
+    delay_init(72);                         /* 延时初始化 */
+    usart_init(115200);                     /* 串口初始化为115200 */
+
+	/* 模块初始化 */
+	OLED_Init();		/* OLED初始化 */
+
 	T117_Init();
 	delay_ms(100);
-	
-	/*OLED��ʾ*/
-	OLED_ShowString(24, 0, "�����¶ȼ�", OLED_8X16);
-	/* Infinite loop */
+
+	/* OLED显示标题 */
+	OLED_ShowString(24, 0, "智能温度计", OLED_8X16);
+
+	/* 主循环 */
 	while (1)
 	{
-		// ��ȡ״̬�Ĵ���������¶�ת���Ƿ����
+		/* 读取状态寄存器，检查温度转换是否完成 */
 		if(T117_R_REG(0x03, &DAT) == 0)
 		{
-			// ����¶�ת��״̬λ��λ5����0=��ɣ�1=ת����
+			/* 检查温度转换状态位（位5：0=完成，1=转换中） */
 			if((DAT & 0x20) == 0)
 			{
-				// �¶�ת�����, ��ȡ�¶�ֵ, ����temperature
+				/* 温度转换完成，读取温度值，存入temperature */
 				T117_R_TEMP(&temperature);
-				OLED_ClearArea(0, 16, 128, 16);  // �����ɵ�ʾ����ֹ����
+				OLED_ClearArea(0, 16, 128, 16);  /* 清除旧显示，防止残影 */
 				OLED_Printf(0, 16, OLED_8X16, "Temp:%5.2fC", temperature);
 			}
 		}

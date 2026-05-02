@@ -1,15 +1,15 @@
 #ifndef __MYI2C_H
 #define __MYI2C_H
 
-#include "stm32f1xx_hal.h"  // 修改这里
+#include "stm32f1xx_hal.h"
 #include "delay.h"
 
-/* 引脚定义 */
+/* 寮曡剼瀹氫箟 */
 #define MyI2C_SCL_PIN GPIO_PIN_10
 #define MyI2C_SDA_PIN GPIO_PIN_11
 #define MyI2C_GPIO_PORT GPIOB
 
-/* 函数声明 */
+/* 鍑芥暟澹版槑 */
 void MyI2C_Init(void);
 void MyI2C_Start(void);
 void MyI2C_Stop(void);
