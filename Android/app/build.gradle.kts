@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.zhiqiangme.kt6368a"
         minSdk = 32
-        targetSdk = 32
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 

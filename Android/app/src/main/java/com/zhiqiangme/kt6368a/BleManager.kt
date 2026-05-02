@@ -38,10 +38,14 @@ class BleManager(
     private val adapter = bluetoothManager.adapter
     private var scanner: BluetoothLeScanner? = null
     private var scanCallback: ScanCallback? = null
+    @Volatile
     private var gatt: BluetoothGatt? = null
     private val pendingDescriptors = ArrayDeque<BluetoothGattDescriptor>()
+    @Volatile
     private var isWritingDescriptor = false
+    @Volatile
     private var isConnecting = false
+    private val scanTimeoutRunnable = Runnable { stopScan() }
 
     fun isBluetoothEnabled(): Boolean {
         return try {
@@ -89,9 +93,16 @@ class BleManager(
         }
 
         try {
-            scanner?.startScan(listOf(filter), settings, scanCallback)
+            val s = scanner
+            if (s == null) {
+                postStatus("蓝牙扫描器不可用")
+                scanCallback = null
+                return
+            }
+            s.startScan(listOf(filter), settings, scanCallback)
             postScanningChanged(true)
             postStatus("正在扫描 KT6368A...")
+            mainHandler.postDelayed(scanTimeoutRunnable, SCAN_TIMEOUT_MS)
         } catch (e: SecurityException) {
             postStatus("缺少蓝牙扫描权限")
             stopScan()
@@ -100,6 +111,7 @@ class BleManager(
 
     @SuppressLint("MissingPermission")
     fun stopScan() {
+        mainHandler.removeCallbacks(scanTimeoutRunnable)
         val callback = scanCallback ?: return
         try {
             scanner?.stopScan(callback)
@@ -143,6 +155,7 @@ class BleManager(
                 postStatus("已连接，正在发现服务...")
                 gatt.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                isConnecting = false
                 postConnectionChanged(false)
                 postStatus("已断开")
                 closeGatt()
@@ -233,14 +246,18 @@ class BleManager(
     }
 
     private fun enqueueDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor) {
-        pendingDescriptors.add(descriptor)
-        if (!isWritingDescriptor) {
-            writeNextDescriptor(gatt)
+        synchronized(pendingDescriptors) {
+            pendingDescriptors.add(descriptor)
+            if (!isWritingDescriptor) {
+                writeNextDescriptor(gatt)
+            }
         }
     }
 
     private fun writeNextDescriptor(gatt: BluetoothGatt) {
-        val next = pendingDescriptors.pollFirst()
+        val next = synchronized(pendingDescriptors) {
+            pendingDescriptors.pollFirst()
+        }
         if (next == null) {
             isWritingDescriptor = false
             return
@@ -253,6 +270,7 @@ class BleManager(
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun closeGatt() {
         gatt?.close()
         gatt = null
@@ -295,6 +313,7 @@ class BleManager(
         val NOTIFY_UUID_2: UUID = UUID.fromString("0000FFF2-0000-1000-8000-00805F9B34FB")
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB")
         private val TEMP_REGEX = Regex("temp=([+-]?\\d+(?:\\.\\d+)?)C", RegexOption.IGNORE_CASE)
+        private const val SCAN_TIMEOUT_MS = 30_000L
     }
 }
 

@@ -289,18 +289,17 @@ private fun BleScreen() {
 
             val primaryButtonLabel = when {
                 uiState.isConnected -> "断开连接"
-                uiState.isScanning -> "正在扫描..."
+                uiState.isScanning -> "停止扫描"
                 else -> "扫描并连接"
             }
-            val primaryButtonEnabled =
-                permissionsGranted && bluetoothEnabled && (!uiState.isScanning || uiState.isConnected)
+            val primaryButtonEnabled = permissionsGranted && bluetoothEnabled
 
             Button(
                 onClick = {
-                    if (uiState.isConnected) {
-                        bleManager.disconnect()
-                    } else {
-                        bleManager.startScan()
+                    when {
+                        uiState.isConnected -> bleManager.disconnect()
+                        uiState.isScanning -> bleManager.stopScan()
+                        else -> bleManager.startScan()
                     }
                 },
                 modifier = Modifier
@@ -341,6 +340,12 @@ private fun ensureTempChannel(context: Context) {
 }
 
 private fun updateTempNotification(context: Context, tempC: String?, isConnected: Boolean) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
+        != PackageManager.PERMISSION_GRANTED
+    ) {
+        return
+    }
     ensureTempChannel(context)
     val text = if (isConnected && !tempC.isNullOrBlank()) {
         "当前温度：${tempC}℃"
@@ -362,14 +367,17 @@ private fun updateTempNotification(context: Context, tempC: String?, isConnected
     NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
 }
 private fun requiredPermissions(): Array<String> {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        arrayOf(
-            android.Manifest.permission.BLUETOOTH_SCAN,
-            android.Manifest.permission.BLUETOOTH_CONNECT,
-        )
+    val perms = mutableListOf<String>()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        perms += android.Manifest.permission.BLUETOOTH_SCAN
+        perms += android.Manifest.permission.BLUETOOTH_CONNECT
     } else {
-        arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        perms += android.Manifest.permission.ACCESS_FINE_LOCATION
     }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        perms += android.Manifest.permission.POST_NOTIFICATIONS
+    }
+    return perms.toTypedArray()
 }
 
 private fun openAppSettings(context: android.content.Context) {
