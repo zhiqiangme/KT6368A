@@ -21,32 +21,38 @@ import android.os.ParcelUuid
 import java.util.ArrayDeque
 import java.util.UUID
 
+/**
+ * BLE 蓝牙管理器
+ * 负责扫描、连接 KT6368A 蓝牙设备，并接收温度数据
+ */
 class BleManager(
     private val context: Context,
     private val callbacks: Callbacks,
 ) {
+    /** 回调接口，用于向 UI 层传递蓝牙状态和数据 */
     interface Callbacks {
-        fun onStatus(message: String)
-        fun onScanningChanged(isScanning: Boolean)
-        fun onScanResult(name: String?, address: String, rssi: Int)
-        fun onConnectionChanged(connected: Boolean)
-        fun onTemperature(tempC: String?, rawAscii: String)
+        fun onStatus(message: String)                // 状态消息
+        fun onScanningChanged(isScanning: Boolean)   // 扫描状态变化
+        fun onScanResult(name: String?, address: String, rssi: Int) // 扫描到设备
+        fun onConnectionChanged(connected: Boolean)  // 连接状态变化
+        fun onTemperature(tempC: String?, rawAscii: String)         // 收到温度数据
     }
 
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper()) // 主线程 Handler，用于回调切线程
     private val bluetoothManager = context.getSystemService(BluetoothManager::class.java)
-    private val adapter = bluetoothManager.adapter
-    private var scanner: BluetoothLeScanner? = null
-    private var scanCallback: ScanCallback? = null
+    private val adapter = bluetoothManager.adapter             // 蓝牙适配器
+    private var scanner: BluetoothLeScanner? = null            // BLE 扫描器
+    private var scanCallback: ScanCallback? = null             // 当前扫描回调
     @Volatile
-    private var gatt: BluetoothGatt? = null
-    private val pendingDescriptors = ArrayDeque<BluetoothGattDescriptor>()
+    private var gatt: BluetoothGatt? = null                    // 当前 GATT 连接
+    private val pendingDescriptors = ArrayDeque<BluetoothGattDescriptor>() // 待写入的描述符队列
     @Volatile
-    private var isWritingDescriptor = false
+    private var isWritingDescriptor = false                    // 是否正在写入描述符
     @Volatile
-    private var isConnecting = false
-    private val scanTimeoutRunnable = Runnable { stopScan() }
+    private var isConnecting = false                           // 是否正在连接中
+    private val scanTimeoutRunnable = Runnable { stopScan() }  // 扫描超时回调
 
+    /** 检查蓝牙是否已开启 */
     fun isBluetoothEnabled(): Boolean {
         return try {
             adapter?.isEnabled == true
@@ -55,6 +61,7 @@ class BleManager(
         }
     }
 
+    /** 开始 BLE 扫描，发现设备后自动连接 */
     @SuppressLint("MissingPermission")
     fun startScan() {
         if (!isBluetoothEnabled()) {
@@ -109,6 +116,7 @@ class BleManager(
         }
     }
 
+    /** 停止 BLE 扫描 */
     @SuppressLint("MissingPermission")
     fun stopScan() {
         mainHandler.removeCallbacks(scanTimeoutRunnable)
@@ -122,6 +130,7 @@ class BleManager(
         postScanningChanged(false)
     }
 
+    /** 断开当前 BLE 连接 */
     @SuppressLint("MissingPermission")
     fun disconnect() {
         if (gatt == null) {
@@ -132,11 +141,13 @@ class BleManager(
         gatt?.disconnect()
     }
 
+    /** 释放资源，停止扫描并关闭 GATT 连接 */
     fun close() {
         stopScan()
         closeGatt()
     }
 
+    /** 连接指定 BLE 设备 */
     @SuppressLint("MissingPermission")
     private fun connect(device: BluetoothDevice) {
         closeGatt()
@@ -148,6 +159,7 @@ class BleManager(
         }
     }
 
+    /** GATT 回调，处理连接状态变化和服务发现等事件 */
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
@@ -206,6 +218,7 @@ class BleManager(
         }
     }
 
+    /** 为指定特征启用通知，并写入 CCCD 描述符 */
     @SuppressLint("MissingPermission")
     private fun enableNotifyForCharacteristic(
         gatt: BluetoothGatt,
@@ -239,12 +252,14 @@ class BleManager(
         enqueueDescriptorWrite(gatt, cccd)
     }
 
+    /** 处理收到的特征数据，解析温度值 */
     private fun handleCharacteristic(value: ByteArray) {
         val ascii = bytesToAscii(value)
         val temp = parseTemperatureFromAscii(ascii)
         postTemperature(temp, ascii)
     }
 
+    /** 将描述符写入操作加入队列，串行执行 */
     private fun enqueueDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor) {
         synchronized(pendingDescriptors) {
             pendingDescriptors.add(descriptor)
@@ -254,6 +269,7 @@ class BleManager(
         }
     }
 
+    /** 从队列取出下一个描述符并写入 */
     private fun writeNextDescriptor(gatt: BluetoothGatt) {
         val next = synchronized(pendingDescriptors) {
             pendingDescriptors.pollFirst()
@@ -270,13 +286,14 @@ class BleManager(
         }
     }
 
+    /** 关闭 GATT 连接并释放资源 */
     @SuppressLint("MissingPermission")
     private fun closeGatt() {
         gatt?.close()
         gatt = null
     }
 
-    private fun postStatus(message: String) {
+    // 以下 post 方法将回调切换到主线程执行
         mainHandler.post { callbacks.onStatus(message) }
     }
 
@@ -296,24 +313,26 @@ class BleManager(
         mainHandler.post { callbacks.onTemperature(tempC, rawAscii) }
     }
 
+    /** 从 ASCII 字符串中解析温度值，格式如 "temp=36.5C" */
     private fun parseTemperatureFromAscii(ascii: String): String? {
         val match = TEMP_REGEX.find(ascii) ?: return null
         val value = match.groupValues.getOrNull(1) ?: return null
         return value
     }
 
+    /** 将字节数组转换为 ASCII 字符串，去除换行和空格 */
     private fun bytesToAscii(bytes: ByteArray): String {
         val text = String(bytes, Charsets.US_ASCII)
         return text.replace("\r", "").replace("\n", "").trim()
     }
 
     companion object {
-        val SERVICE_UUID: UUID = UUID.fromString("0000FFF0-0000-1000-8000-00805F9B34FB")
-        val NOTIFY_UUID_1: UUID = UUID.fromString("0000FFF1-0000-1000-8000-00805F9B34FB")
-        val NOTIFY_UUID_2: UUID = UUID.fromString("0000FFF2-0000-1000-8000-00805F9B34FB")
-        val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB")
-        private val TEMP_REGEX = Regex("temp=([+-]?\\d+(?:\\.\\d+)?)C", RegexOption.IGNORE_CASE)
-        private const val SCAN_TIMEOUT_MS = 30_000L
+        val SERVICE_UUID: UUID = UUID.fromString("0000FFF0-0000-1000-8000-00805F9B34FB")   // KT6368A 主服务 UUID
+        val NOTIFY_UUID_1: UUID = UUID.fromString("0000FFF1-0000-1000-8000-00805F9B34FB") // 通知特征 1
+        val NOTIFY_UUID_2: UUID = UUID.fromString("0000FFF2-0000-1000-8000-00805F9B34FB") // 通知特征 2
+        val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB")     // CCCD 描述符 UUID
+        private val TEMP_REGEX = Regex("temp=([+-]?\\d+(?:\\.\\d+)?)C", RegexOption.IGNORE_CASE) // 温度值正则
+        private const val SCAN_TIMEOUT_MS = 30_000L // 扫描超时时间（30秒）
     }
 }
 

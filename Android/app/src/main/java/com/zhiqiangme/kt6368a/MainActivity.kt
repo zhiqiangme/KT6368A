@@ -55,6 +55,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.zhiqiangme.kt6368a.ui.theme.KT6368ATheme
 
+/** 主 Activity，承载 BLE 温度计的 Compose UI */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -69,6 +70,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** BLE 界面状态数据类 */
 private data class BleUiState(
     val status: String = "空闲",
     val deviceName: String? = null,
@@ -79,6 +81,7 @@ private data class BleUiState(
     val isConnected: Boolean = false,
 )
 
+/** BLE 温度计主界面 Composable */
 @Composable
 private fun BleScreen() {
     val context = LocalContext.current
@@ -106,6 +109,7 @@ private fun BleScreen() {
         uiState = uiState.copy(status = "蓝牙启用请求已完成")
     }
 
+    // 创建 BLE 管理器实例，绑定回调更新 UI 状态
     val bleManager = remember {
         BleManager(context.applicationContext, object : BleManager.Callbacks {
             override fun onStatus(message: String) {
@@ -132,6 +136,7 @@ private fun BleScreen() {
         })
     }
 
+    // 界面销毁时释放 BLE 资源
     DisposableEffect(Unit) {
         onDispose { bleManager.close() }
     }
@@ -321,9 +326,10 @@ private fun BleScreen() {
 }
 
 
-private const val NOTIFICATION_CHANNEL_ID = "kt6368a_temp"
-private const val NOTIFICATION_ID = 1001
+private const val NOTIFICATION_CHANNEL_ID = "kt6368a_temp" // 通知渠道 ID
+private const val NOTIFICATION_ID = 1001                   // 通知 ID
 
+/** 确保温度通知渠道已创建 */
 private fun ensureTempChannel(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val manager = context.getSystemService(NotificationManager::class.java)
@@ -339,6 +345,7 @@ private fun ensureTempChannel(context: Context) {
     manager.createNotificationChannel(channel)
 }
 
+/** 更新温度通知栏显示，需要 POST_NOTIFICATIONS 权限 */
 private fun updateTempNotification(context: Context, tempC: String?, isConnected: Boolean) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
         ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
@@ -366,6 +373,7 @@ private fun updateTempNotification(context: Context, tempC: String?, isConnected
         .build()
     NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
 }
+/** 根据 Android 版本返回所需的运行时权限列表 */
 private fun requiredPermissions(): Array<String> {
     val perms = mutableListOf<String>()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -380,6 +388,7 @@ private fun requiredPermissions(): Array<String> {
     return perms.toTypedArray()
 }
 
+/** 打开应用设置页面，供用户手动开启权限 */
 private fun openAppSettings(context: android.content.Context) {
     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
         data = Uri.fromParts("package", context.packageName, null)
