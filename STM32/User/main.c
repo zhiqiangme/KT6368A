@@ -1,4 +1,6 @@
 #include "main.h"
+#include <stdio.h>
+#include <string.h>
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -6,6 +8,7 @@
 /* Private variables ---------------------------------------------------------*/
 float temperature;
 char temperature_string[24];
+extern UART_HandleTypeDef g_uart1_handle;  /* 串口句柄，用于发送温度数据到蓝牙模块 */
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -22,7 +25,12 @@ int main(void)
 	/* 模块初始化 */
 	OLED_Init();		/* OLED初始化 */
 
-	T117_Init();
+	if(T117_Init() != 0)
+	{
+		OLED_ShowString(0, 16, "T117 Init Err", OLED_8X16);
+		OLED_Update();
+		while(1);  /* 初始化失败，停机 */
+	}
 	delay_ms(100);
 
 	/* OLED显示标题 */
@@ -38,9 +46,15 @@ int main(void)
 			if((DAT & 0x20) == 0)
 			{
 				/* 温度转换完成，读取温度值，存入temperature */
-				T117_R_TEMP(&temperature);
-				OLED_ClearArea(0, 16, 128, 16);  /* 清除旧显示，防止残影 */
-				OLED_Printf(0, 16, OLED_8X16, "Temp:%5.2fC", temperature);
+				if(T117_R_TEMP(&temperature) == 0)
+				{
+					OLED_ClearArea(0, 16, 128, 16);  /* 清除旧显示，防止残影 */
+					OLED_Printf(0, 16, OLED_8X16, "Temp:%5.2fC", temperature);
+
+					/* 通过串口发送温度数据到 KT6368A 蓝牙模块 */
+					int len = sprintf(temperature_string, "temp=%.2fC\r\n", temperature);
+					HAL_UART_Transmit(&g_uart1_handle, (uint8_t *)temperature_string, len, 100);
+				}
 			}
 		}
 

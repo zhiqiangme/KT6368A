@@ -91,8 +91,9 @@ typedef enum
 
 /**
  * @brief  初始化T117温度传感器
+ * @retval 0:成功 其他:错误代码
  */
-void T117_Init(void);
+uint8_t T117_Init(void);
 
 /**
  * @brief  读取设备ID

@@ -40,28 +40,31 @@
 
 /**
  * @brief  初始化T117温度传感器
+ * @retval 0:成功 其他:错误代码（失败的寄存器写入步骤）
  */
-void T117_Init(void)
+uint8_t T117_Init(void)
 {
     MyI2C_Init();
 
-    /* 设置转换指令寄存器，连续转换模式，正常功耗 */
-    T117_W_REG(Temp_Cmd, 0x00);  /* 启动连续采样 */
+    /* 设置转换指令寄存器，连续转换模式 */
+    if(T117_W_REG(Temp_Cmd, 0x00)) return 1;
 
     /* 设置配置寄存器
-     * 0x39 = 0011 1001b
-     * 位7-5: 001 - 每秒2次采样频率（对应FRE_2times）
-     * 位4-3: 10 - 32次平均滤波（对应AVG_32）
+     * 0x59 = 0101 1001b
+     * 位7-5: 010 - 每秒2次采样频率（对应FRE_2times）
+     * 位4-3: 11 - 32次平均滤波（对应AVG_32）
      * 位0:   1 - 开启低功耗模式（对应ON_PD）
      */
-    T117_W_REG(Temp_Cfg, 0x39);  /* 每秒2次，32次平均，开启低功耗 */
+    if(T117_W_REG(Temp_Cfg, 0x59)) return 2;
 
     /* 设置报警模式寄存器
      * 0x90 = 1001 0000b
      * 位7: 1 - 报警功能使能
      * 位4: 1 - 报警引脚输出转换完成标志位（对应CONVERT_FINI）
      */
-    T117_W_REG(Alert_Mode, 0x90);  /* 使能报警，输出转换完成标志 */
+    if(T117_W_REG(Alert_Mode, 0x90)) return 3;
+
+    return 0;
 }
 
 /**
@@ -210,27 +213,35 @@ uint8_t T117_W_REG(uint8_t REG, uint8_t DAT)
 uint8_t T117_R_TEMP(float *DAT)
 {
     uint16_t rx = 0;     /* 用于存储合并后的16位温度原始数据 */
-    uint8_t data = 0;    /* 临时存储每个字节的数据 */
+    uint8_t lsb = 0, msb = 0;
 
-    /* 第1步：读取温度高字节(MSB)，寄存器地址0x01 */
-    if(T117_R_REG(0x01, &data)) return 1;
-    rx = data;           /* 高字节数据传入rx */
-    rx <<= 8;            /* 左移8位，为低字节预留位置 */
+    /* 在一次 I2C 事务中连续读取 LSB(0x00) 和 MSB(0x01)，
+     * 避免两次独立读取之间寄存器值被更新导致数据不一致 */
+    MyI2C_Start();
+    MyI2C_SendByte(T117_WADD);
+    if(MyI2C_ReceiveAck()) { MyI2C_Stop(); return 1; }
 
-    /* 第2步：读取温度低字节(LSB)，寄存器地址0x00 */
-    if(T117_R_REG(0x00, &data)) return 2;
-    rx += data;          /* 低字节数据加入rx，完成16位温度数据拼接 */
+    MyI2C_SendByte(0x00);  /* 起始地址：温度低字节 */
+    if(MyI2C_ReceiveAck()) { MyI2C_Stop(); return 1; }
 
-    /* 第3步：将16位原始数据转换为有符号整数，以处理负温度 */
+    MyI2C_Start();
+    MyI2C_SendByte(T117_RADD);
+    if(MyI2C_ReceiveAck()) { MyI2C_Stop(); return 2; }
+
+    lsb = MyI2C_ReceiveByte();   /* 读取 LSB */
+    MyI2C_SendAck(0);            /* 发送 ACK，继续读取 */
+    msb = MyI2C_ReceiveByte();   /* 读取 MSB */
+    MyI2C_SendAck(1);            /* 发送 NACK，结束读取 */
+    MyI2C_Stop();
+
+    /* 拼接为16位有符号整数 */
+    rx = ((uint16_t)msb << 8) | lsb;
     *DAT = (int16_t)rx;
 
-    /* 第4步：将原始数据转换为实际温度值（摄氏度）
-     * 转换公式: 温度 = 25.0 + 原始数据 / 256.0
-     * 说明: 25.0是基准温度，原始数据表示相对于25度的偏移量
-     * 每1个数字量代表1/256摄氏度的温度变化
+    /* 转换为实际温度值（摄氏度）
+     * 公式: 温度 = 25.0 + 原始数据 / 256.0
      */
     *DAT = 25.0 + (*DAT) / 256.0;
 
-    /* 返回成功标志 */
     return 0;
 }
