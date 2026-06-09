@@ -47,6 +47,7 @@ class BleManager(
     @Volatile
     private var gatt: BluetoothGatt? = null                    // 当前 GATT 连接
     private val pendingDescriptors = ArrayDeque<BluetoothGattDescriptor>() // 待写入的描述符队列
+    private val pendingValues = ArrayDeque<ByteArray?>()                   // 对应的描述符值队列
     @Volatile
     private var isWritingDescriptor = false                    // 是否正在写入描述符
     @Volatile
@@ -89,6 +90,7 @@ class BleManager(
                 stopScan()
             }
 
+            @SuppressLint("MissingPermission")
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 val device = result.device ?: return
                 postScanResult(device, result.rssi)
@@ -180,7 +182,11 @@ class BleManager(
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 isConnecting = false
                 postConnectionChanged(false)
-                postStatus("已断开")
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    postStatus("异常断开：$status")
+                } else {
+                    postStatus("已断开")
+                }
                 closeGatt()
             }
         }
@@ -259,8 +265,7 @@ class BleManager(
             postStatus("未找到 CCCD：$uuid")
             return
         }
-        cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-        enqueueDescriptorWrite(gatt, cccd)
+        enqueueDescriptorWrite(gatt, cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
     }
 
     /** 处理收到的特征数据，解析温度值 */
@@ -271,9 +276,14 @@ class BleManager(
     }
 
     /** 将描述符写入操作加入队列，串行执行 */
-    private fun enqueueDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor) {
+    private fun enqueueDescriptorWrite(
+        gatt: BluetoothGatt,
+        descriptor: BluetoothGattDescriptor,
+        value: ByteArray? = null
+    ) {
         synchronized(pendingDescriptors) {
-            pendingDescriptors.add(descriptor)
+            pendingDescriptors.addLast(descriptor)
+            pendingValues.addLast(value)
             if (!isWritingDescriptor) {
                 writeNextDescriptor(gatt)
             }
@@ -282,17 +292,21 @@ class BleManager(
 
     /** 从队列取出下一个描述符并写入 */
     private fun writeNextDescriptor(gatt: BluetoothGatt) {
-        val next = synchronized(pendingDescriptors) {
-            val n = pendingDescriptors.pollFirst()
-            if (n == null) {
-                isWritingDescriptor = false
-            } else {
-                isWritingDescriptor = true
-            }
-            n
+        val next: BluetoothGattDescriptor?
+        val value: ByteArray?
+        synchronized(pendingDescriptors) {
+            next = pendingDescriptors.pollFirst()
+            value = pendingValues.pollFirst()
+            isWritingDescriptor = next != null
         }
         if (next == null) return
-        val ok = gatt.writeDescriptor(next)
+        // API 33+ 推荐使用 writeDescriptor(descriptor, value) 替代直接设置 descriptor.value
+        val ok = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && value != null) {
+            gatt.writeDescriptor(next, value)
+        } else {
+            if (value != null) next.value = value
+            gatt.writeDescriptor(next)
+        }
         if (!ok) {
             postStatus("描述符写入被拒绝")
             synchronized(pendingDescriptors) { isWritingDescriptor = false }
@@ -303,6 +317,7 @@ class BleManager(
     @SuppressLint("MissingPermission")
     private fun closeGatt() {
         synchronized(gattLock) {
+            gatt?.disconnect()
             gatt?.close()
             gatt = null
         }
@@ -317,6 +332,7 @@ class BleManager(
         mainHandler.post { callbacks.onScanningChanged(isScanning) }
     }
 
+    @SuppressLint("MissingPermission")
     private fun postScanResult(device: BluetoothDevice, rssi: Int) {
         mainHandler.post { callbacks.onScanResult(device.name, device.address, rssi) }
     }

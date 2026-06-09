@@ -79,6 +79,7 @@ private data class BleUiState(
     val rawAscii: String? = null,
     val isScanning: Boolean = false,
     val isConnected: Boolean = false,
+    val isDisconnecting: Boolean = false,  // 断开过程中禁用按钮，防止重复点击
 )
 
 /** BLE 温度计主界面 Composable */
@@ -125,7 +126,7 @@ private fun BleScreen() {
             }
 
             override fun onConnectionChanged(connected: Boolean) {
-                uiState = uiState.copy(isConnected = connected)
+                uiState = uiState.copy(isConnected = connected, isDisconnecting = false)
                 updateTempNotification(context, uiState.temperatureC, connected)
             }
 
@@ -136,9 +137,12 @@ private fun BleScreen() {
         })
     }
 
-    // 界面销毁时释放 BLE 资源
+    // 界面销毁时释放 BLE 资源并取消通知
     DisposableEffect(Unit) {
-        onDispose { bleManager.close() }
+        onDispose {
+            bleManager.close()
+            NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+        }
     }
 
     val bluetoothEnabled = bleManager.isBluetoothEnabled()
@@ -293,16 +297,20 @@ private fun BleScreen() {
             }
 
             val primaryButtonLabel = when {
+                uiState.isDisconnecting -> "断开中..."
                 uiState.isConnected -> "断开连接"
                 uiState.isScanning -> "停止扫描"
                 else -> "扫描并连接"
             }
-            val primaryButtonEnabled = permissionsGranted && bluetoothEnabled
+            val primaryButtonEnabled = permissionsGranted && bluetoothEnabled && !uiState.isDisconnecting
 
             Button(
                 onClick = {
                     when {
-                        uiState.isConnected -> bleManager.disconnect()
+                        uiState.isConnected -> {
+                            uiState = uiState.copy(isDisconnecting = true)
+                            bleManager.disconnect()
+                        }
                         uiState.isScanning -> bleManager.stopScan()
                         else -> bleManager.startScan()
                     }
