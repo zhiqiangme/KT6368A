@@ -62,7 +62,9 @@ export class Kt6368aBle {
     if (connected) {
       this.callbacks.onConnectionChanged(true);
       this.callbacks.onStatus('Connected. Discovering services...');
-      this.discoverServices();
+      this.discoverServices().catch((err: BusinessError) => {
+        this.callbacks.onStatus(`Discover services failed: ${err?.message ?? JSON.stringify(err)}`);
+      });
     } else if (isConnecting) {
       this.callbacks.onStatus('Connecting...');
     } else if (isDisconnecting) {
@@ -258,9 +260,19 @@ export class Kt6368aBle {
 
   private closeGatt(): void {
     try {
+      this.gattClient?.off('BLEConnectionStateChange', this.connectStateHandler);
+    } catch (_) {
+      // Ignore; listener might already be removed.
+    }
+    try {
+      this.gattClient?.off('BLECharacteristicChange', this.characteristicChangeHandler);
+    } catch (_) {
+      // Ignore; listener might already be removed.
+    }
+    try {
       this.gattClient?.close();
     } catch (_) {
-      // Ignore
+      // Ignore; device might already be closed.
     }
     this.gattClient = undefined;
   }

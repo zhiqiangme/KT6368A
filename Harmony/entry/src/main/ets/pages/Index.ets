@@ -92,6 +92,7 @@ struct Index {
 
   aboutToDisappear() {
     this.ble?.close();
+    this.clearTemperatureNotification();
     this.stopOrbAnimation();
     this.clearReceiveTimeout();
   }
@@ -245,8 +246,10 @@ struct Index {
       animateTo({ duration: 5000, curve: Curve.EaseInOut }, () => {
         this.orbShift = !this.orbShift;
         this.orbShift2 = !this.orbShift2;
+      }, () => {
+        // 动画完成后再安排下一轮，避免时序竞争
+        this.animationTimerId = setTimeout(loop, 0);
       });
-      this.animationTimerId = setTimeout(loop, 5000);
     };
     loop();
   }
