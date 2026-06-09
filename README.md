@@ -4,6 +4,10 @@
 
 项目地址：https://github.com/zhiqiangme/STM32_Thermometer
 
+嘉立创开源社区：https://oshwhub.com/mydeimos/works
+
+![封面](OSHWHub/封面.jpg)
+
 ## 硬件方案
 
 | 模块 | 型号 | 接口 | 说明 |

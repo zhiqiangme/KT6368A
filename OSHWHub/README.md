@@ -191,6 +191,10 @@ STM32_Thermometer/
 
 > **说明**：OLED 和 KT6368A 为成品模块，直接插接使用。
 
+## 源代码
+
+GitHub 仓库：https://github.com/zhiqiangme/STM32_Thermometer
+
 ## 开源许可
 
 本项目采用 **MIT License** 开源。
