@@ -61,4 +61,4 @@ STM32_Thermometer/
 
 ## 开源许可
 
-本项目采用 [MIT License](LICENSE) 开源。
+本项目硬件设计采用 [CERN-OHL-P-2.0](LICENSE) 开源，软件代码采用 [MIT License](LICENSE) 开源。
