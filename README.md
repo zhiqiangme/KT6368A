@@ -4,7 +4,7 @@
 
 项目地址：https://github.com/zhiqiangme/STM32_Thermometer
 
-嘉立创开源社区：https://oshwhub.com/mydeimos/works
+嘉立创开源社区：https://oshwhub.com/mydeimos/electronic_thermometer-250818
 
 ![封面](OSHWHub/封面.jpg)
 
