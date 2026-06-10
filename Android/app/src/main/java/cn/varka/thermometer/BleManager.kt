@@ -15,7 +15,9 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
@@ -179,7 +181,23 @@ class BleManager(
                 }
                 postConnectionChanged(true)
                 postStatus("已连接，正在发现服务...")
-                gatt.discoverServices()
+                if (!hasBluetoothConnectPermission()) {
+                    isConnecting = false
+                    postConnectionChanged(false)
+                    postStatus("缺少蓝牙连接权限")
+                    closeGatt()
+                    return
+                }
+                try {
+                    if (!gatt.discoverServices()) {
+                        postStatus("服务发现启动失败")
+                    }
+                } catch (e: SecurityException) {
+                    isConnecting = false
+                    postConnectionChanged(false)
+                    postStatus("缺少蓝牙连接权限")
+                    closeGatt()
+                }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 isConnecting = false
                 postConnectionChanged(false)
@@ -301,26 +319,55 @@ class BleManager(
             isWritingDescriptor = next != null
         }
         if (next == null) return
+        if (!hasBluetoothConnectPermission()) {
+            postStatus("缺少蓝牙连接权限")
+            clearDescriptorQueue()
+            return
+        }
         // API 33+ 推荐使用 writeDescriptor(descriptor, value) 替代直接设置 descriptor.value
-        val ok = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && value != null) {
-            gatt.writeDescriptor(next, value) == BluetoothStatusCodes.SUCCESS
-        } else {
-            if (value != null) next.value = value
-            gatt.writeDescriptor(next)
+        val ok = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && value != null) {
+                gatt.writeDescriptor(next, value) == BluetoothStatusCodes.SUCCESS
+            } else {
+                if (value != null) next.value = value
+                gatt.writeDescriptor(next)
+            }
+        } catch (e: SecurityException) {
+            postStatus("缺少蓝牙连接权限")
+            false
         }
         if (!ok) {
             postStatus("描述符写入被拒绝")
-            synchronized(pendingDescriptors) { isWritingDescriptor = false }
+            clearDescriptorQueue()
         }
     }
 
     /** 关闭 GATT 连接并释放资源 */
     @SuppressLint("MissingPermission")
     private fun closeGatt() {
+        clearDescriptorQueue()
         synchronized(gattLock) {
-            gatt?.disconnect()
-            gatt?.close()
+            try {
+                gatt?.disconnect()
+                gatt?.close()
+            } catch (_: SecurityException) {
+                // 权限被撤销时仍要释放本地连接引用，避免状态残留。
+            }
             gatt = null
+        }
+    }
+
+    /** 检查当前是否仍有 BLE 连接权限 */
+    private fun hasBluetoothConnectPermission(): Boolean {
+        return context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+    }
+
+    /** 清空待写描述符队列，避免断开后重连沿用旧 GATT 操作 */
+    private fun clearDescriptorQueue() {
+        synchronized(pendingDescriptors) {
+            pendingDescriptors.clear()
+            pendingValues.clear()
+            isWritingDescriptor = false
         }
     }
 
