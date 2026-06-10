@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "KT6368A"
+rootProject.name = "Thermometer"
 include(":app")

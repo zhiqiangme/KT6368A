@@ -1,4 +1,4 @@
-﻿package com.zhiqiangme.kt6368a.ui.theme
+package cn.varka.thermometer.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

@@ -1,4 +1,4 @@
-﻿package com.zhiqiangme.kt6368a
+package cn.varka.thermometer
 
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
@@ -53,7 +53,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.zhiqiangme.kt6368a.ui.theme.KT6368ATheme
+import cn.varka.thermometer.ui.theme.KT6368ATheme
 
 /** 主 Activity，承载 BLE 温度计的 Compose UI */
 class MainActivity : ComponentActivity() {
@@ -161,7 +161,7 @@ private fun BleScreen() {
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "KT6368A 电子温度计",
+                    text = "电子温度计",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -334,7 +334,7 @@ private fun BleScreen() {
 }
 
 
-private const val NOTIFICATION_CHANNEL_ID = "kt6368a_temp" // 通知渠道 ID
+private const val NOTIFICATION_CHANNEL_ID = "thermometer_temp" // 通知渠道 ID
 private const val NOTIFICATION_ID = 1001                   // 通知 ID
 
 /** 确保温度通知渠道已创建 */
@@ -345,7 +345,7 @@ private fun ensureTempChannel(context: Context) {
     if (existing != null) return
     val channel = NotificationChannel(
         NOTIFICATION_CHANNEL_ID,
-        "KT6368A 温度",
+        "电子温度计温度",
         NotificationManager.IMPORTANCE_LOW
     )
     channel.setSound(null, null)
@@ -371,7 +371,7 @@ private fun updateTempNotification(context: Context, tempC: String?, isConnected
     }
     val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
         .setSmallIcon(R.mipmap.ic_launcher)
-        .setContentTitle("KT6368A 温度")
+        .setContentTitle("电子温度计温度")
         .setContentText(text)
         .setOngoing(true)
         .setOnlyAlertOnce(true)

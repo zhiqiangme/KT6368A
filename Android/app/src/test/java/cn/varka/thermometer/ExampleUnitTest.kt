@@ -1,4 +1,4 @@
-﻿package com.zhiqiangme.kt6368a
+package cn.varka.thermometer
 
 import org.junit.Test
 

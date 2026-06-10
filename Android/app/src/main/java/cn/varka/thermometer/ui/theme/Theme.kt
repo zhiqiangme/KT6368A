@@ -1,4 +1,4 @@
-﻿package com.zhiqiangme.kt6368a.ui.theme
+package cn.varka.thermometer.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
