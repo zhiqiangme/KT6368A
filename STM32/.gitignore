@@ -25,6 +25,7 @@
 **/Objects/
 **/Listings/
 **/RTE/
+**/DebugConfig/
 
 # --- STM32CubeIDE ---
 **/Debug/

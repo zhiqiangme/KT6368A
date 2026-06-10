@@ -34,7 +34,7 @@ int main(void)
 	delay_ms(100);
 
 	/* OLED显示标题 */
-	OLED_ShowString(24, 0, "智能温度计", OLED_8X16);
+	OLED_ShowString(20, 0, "Thermometer", OLED_8X16);
 
 	/* 主循环 */
 	while (1)
