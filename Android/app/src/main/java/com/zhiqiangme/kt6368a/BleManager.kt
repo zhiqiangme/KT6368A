@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -302,7 +303,7 @@ class BleManager(
         if (next == null) return
         // API 33+ 推荐使用 writeDescriptor(descriptor, value) 替代直接设置 descriptor.value
         val ok = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && value != null) {
-            gatt.writeDescriptor(next, value)
+            gatt.writeDescriptor(next, value) == BluetoothStatusCodes.SUCCESS
         } else {
             if (value != null) next.value = value
             gatt.writeDescriptor(next)
