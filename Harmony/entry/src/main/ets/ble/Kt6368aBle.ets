@@ -19,6 +19,7 @@ export class Kt6368aBle {
   private scanTimerId: number | undefined;
   private bestScanResult: ble.ScanResult | undefined;
   private bestTargetResult: ble.ScanResult | undefined;
+  private isScanListenerRegistered: boolean = false;
 
   private readonly deviceFoundHandler = (data: Array<ble.ScanResult>) => {
     if (data.length === 0) {
@@ -31,8 +32,9 @@ export class Kt6368aBle {
       this.callbacks.onDebug(`Found: ${name} (${device.deviceId}) RSSI=${device.rssi}`);
       if (!this.bestScanResult || device.rssi > this.bestScanResult.rssi) {
         this.bestScanResult = device;
+        this.callbacks.onDeviceFound(name, device.deviceId);
       }
-      if (name.toUpperCase().includes(TARGET_NAME_TOKEN)) {
+      if (this.isTargetName(name)) {
         if (!this.bestTargetResult || device.rssi > this.bestTargetResult.rssi) {
           this.bestTargetResult = device;
           this.callbacks.onDeviceFound(name, device.deviceId);
@@ -43,7 +45,7 @@ export class Kt6368aBle {
 
   private readonly connectStateHandler = (state: ble.BLEConnectionChangeState) => {
     const stateCode = state.state;
-    const errorCode = state.errorCode;
+    const disconnectReason = state.reason;
     const connected = stateCode === constant.ProfileConnectionState.STATE_CONNECTED;
     const isConnecting = stateCode === constant.ProfileConnectionState.STATE_CONNECTING;
     const isDisconnecting = stateCode === constant.ProfileConnectionState.STATE_DISCONNECTING;
@@ -58,7 +60,7 @@ export class Kt6368aBle {
     } else if (isDisconnected) {
       label = 'disconnected';
     }
-    this.callbacks.onDebug(`Connection state: ${stateCode} (${label}), error: ${errorCode}`);
+    this.callbacks.onDebug(`Connection state: ${stateCode} (${label}), reason: ${disconnectReason ?? 'none'}`);
     if (connected) {
       this.callbacks.onConnectionChanged(true);
       this.callbacks.onStatus('Connected. Discovering services...');
@@ -71,9 +73,9 @@ export class Kt6368aBle {
       this.callbacks.onStatus('Disconnecting...');
     } else if (isDisconnected) {
       this.callbacks.onConnectionChanged(false);
-      if (errorCode && errorCode !== 0) {
-        this.callbacks.onStatus(`Disconnected with error: ${errorCode}`);
-        this.callbacks.onDebug(`Disconnected with error code: ${errorCode}`);
+      if (disconnectReason !== undefined) {
+        this.callbacks.onStatus(`Disconnected with reason: ${disconnectReason}`);
+        this.callbacks.onDebug(`Disconnected with reason: ${disconnectReason}`);
       } else {
         this.callbacks.onStatus('Disconnected.');
       }
@@ -111,14 +113,16 @@ export class Kt6368aBle {
       this.bestTargetResult = undefined;
       this.callbacks.onDebug('Start BLE scan with FFF0 filter.');
       ble.on('BLEDeviceFind', this.deviceFoundHandler);
+      this.isScanListenerRegistered = true;
       ble.startBLEScan(filters, options);
       this.isScanning = true;
       this.callbacks.onScanningChanged(true);
       this.callbacks.onStatus('Scanning for KT6368A service...');
       this.scanTimerId = setTimeout(() => {
         this.stopScan();
-        if (this.bestTargetResult) {
-          const device = this.bestTargetResult;
+        // 名称可能为空或略有差异，优先连接命名匹配设备，否则回退到服务过滤命中的最强信号设备。
+        const device = this.bestTargetResult ?? this.bestScanResult;
+        if (device) {
           this.deviceId = device.deviceId;
           this.callbacks.onDeviceFound(device.deviceName, this.deviceId);
           this.callbacks.onDebug(`Auto-connect target: ${device.deviceName} (${device.deviceId})`);
@@ -133,30 +137,42 @@ export class Kt6368aBle {
       this.callbacks.onStatus(`Scan failed: ${error?.message ?? JSON.stringify(err)}`);
       this.callbacks.onDebug(`Scan failed: ${error?.message ?? JSON.stringify(err)}`);
       this.stopScan();
+      this.unregisterScanListener();
     }
   }
 
   stopScan(): void {
-    if (!this.isScanning) {
+    if (!this.isScanning && !this.isScanListenerRegistered) {
       return;
     }
     this.callbacks.onDebug('Stop BLE scan.');
-    try {
-      ble.stopBLEScan();
-    } catch (_) {
-      // Ignore; scan might already be stopped.
+    if (this.isScanning) {
+      try {
+        ble.stopBLEScan();
+      } catch (_) {
+        // Ignore; scan might already be stopped.
+      }
     }
     if (this.scanTimerId !== undefined) {
       clearTimeout(this.scanTimerId);
       this.scanTimerId = undefined;
+    }
+    this.unregisterScanListener();
+    this.isScanning = false;
+    this.callbacks.onScanningChanged(false);
+  }
+
+  // 独立清理扫描监听，确保 startBLEScan 失败时不会残留重复回调。
+  private unregisterScanListener(): void {
+    if (!this.isScanListenerRegistered) {
+      return;
     }
     try {
       ble.off('BLEDeviceFind', this.deviceFoundHandler);
     } catch (_) {
       // Ignore; callback might already be removed.
     }
-    this.isScanning = false;
-    this.callbacks.onScanningChanged(false);
+    this.isScanListenerRegistered = false;
   }
 
   disconnect(): void {
@@ -280,10 +296,15 @@ export class Kt6368aBle {
   private isUuidMatch(a: string, b: string): boolean {
     return a.toUpperCase() === b.toUpperCase();
   }
+
+  // KT6368A 的广播名可能不带 -BLE 后缀，这里只判断核心型号。
+  private isTargetName(name: string): boolean {
+    return name.toUpperCase().includes(TARGET_NAME_TOKEN);
+  }
 }
 
 export const SERVICE_UUID = '0000FFF0-0000-1000-8000-00805F9B34FB';
 export const NOTIFY_UUID_1 = '0000FFF1-0000-1000-8000-00805F9B34FB';
 export const NOTIFY_UUID_2 = '0000FFF2-0000-1000-8000-00805F9B34FB';
 const TEMP_REGEX = /temp=([+-]?\d+(?:\.\d+)?)C/i;
-const TARGET_NAME_TOKEN = 'KT6368A-BLE';
+const TARGET_NAME_TOKEN = 'KT6368A';

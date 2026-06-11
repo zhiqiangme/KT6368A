@@ -19,6 +19,9 @@ class BleCallbacksImpl implements BleCallbacks {
     if (isScanning) {
       this.owner.status = '扫描中';
       this.owner.statusDetail = '';
+    } else if (!this.owner.isConnected) {
+      this.owner.status = '蓝牙未连接';
+      this.owner.statusDetail = '';
     }
   }
 
@@ -78,6 +81,8 @@ struct Index {
   private readonly notificationId: number = 1001;
   private hasNotified: boolean = false;
   private receiveTimeoutId: number | undefined;
+  private isOrbAnimationActive: boolean = false;
+  private readonly orbAnimationDurationMs: number = 5000;
 
   async aboutToAppear() {
     if (!this.callbacks) {
@@ -126,6 +131,16 @@ struct Index {
     if (message.includes('Scanning')) {
       this.status = '扫描中';
       this.statusDetail = '';
+      return;
+    }
+    if (message.includes('No KT6368A BLE devices found')) {
+      this.status = '未找到设备';
+      this.statusDetail = '';
+      return;
+    }
+    if (message.includes('Scan failed')) {
+      this.status = '扫描失败';
+      this.statusDetail = message;
       return;
     }
     if (message.includes('Connecting')) {
@@ -239,22 +254,26 @@ struct Index {
   }
 
   private startOrbAnimation(): void {
-    if (this.animationTimerId !== undefined) {
+    if (this.isOrbAnimationActive) {
       return;
     }
+    this.isOrbAnimationActive = true;
     const loop = () => {
-      animateTo({ duration: 5000, curve: Curve.EaseInOut }, () => {
+      if (!this.isOrbAnimationActive) {
+        return;
+      }
+      animateTo({ duration: this.orbAnimationDurationMs, curve: Curve.EaseInOut }, () => {
         this.orbShift = !this.orbShift;
         this.orbShift2 = !this.orbShift2;
-      }, () => {
-        // 动画完成后再安排下一轮，避免时序竞争
-        this.animationTimerId = setTimeout(loop, 0);
       });
+      // animateTo 当前 API 没有完成回调，用同周期定时器驱动下一轮动画。
+      this.animationTimerId = setTimeout(loop, this.orbAnimationDurationMs);
     };
     loop();
   }
 
   private stopOrbAnimation(): void {
+    this.isOrbAnimationActive = false;
     if (this.animationTimerId === undefined) {
       return;
     }
