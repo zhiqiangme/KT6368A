@@ -44,7 +44,7 @@ STM32_Thermometer/
 
 - 开发环境：Android Studio
 - 目录：`/Android`
-- 包名：`com.zhiqiangme.kt6368a`
+- 包名：`cn.varka.thermometer`
 - 最低 SDK：32（Android 12L）
 - 主要功能：
   - BLE 扫描与连接
